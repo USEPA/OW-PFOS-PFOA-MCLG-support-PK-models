@@ -1,0 +1,13 @@
+*.pyc
+*.c
+*.db
+*.ipynb_checkpoints
+*.pk
+*.so
+*.Rhistory
+*.dll
+*.o
+*model_inits.R
+*~
+*.docx
+*.html

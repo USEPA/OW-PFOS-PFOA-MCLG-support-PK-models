@@ -1,0 +1,219 @@
+#------------------------------------------------------------------------------
+# pfoa_2compabandersenoral.model
+#
+# A translation of the Andersen 2 cmpt PFOS/PFOA mdoel
+#
+# Author: Todd Zurlinden, U.S. EPA, April 2021
+#------------------------------------------------------------------------------
+
+# Changes from Wambaugh et al. 2013 to HESD model which includes developmental PK
+#================================================================================
+
+# 1. Change time units from hr --> day
+
+# STATE VARIABLES for the model (for which ODEs are provided).
+
+States = {
+    A_mf,       # Amount in central compartment (mother + fetus(es))
+	A_i,	    # Amount in infant central compartment
+	AUC_m,		# Area under the concentration curve for the mother (mg/kg*d).
+	AUC_i,		# Area under the concentration curve for the fetus/infant (mg/kg*d).
+	
+	d_m,        # Rate of dose administration to mother (mg/kg/d or mg/kg).
+    d_i,        # Rate of dose administration to infant (mg/kg/d or mg/kg).
+	d_m_iv,		# Rate of IV dose administration to mother (mg/kg/d or mg/kg).
+	d_i_iv,		# Rate of IV dose administration to infant (mg/kg/d or mg/kg).
+    T_in,       # Total cumulative input to system (mg).
+    T_out,      # Total cumulative output/clearance from system (mg).
+	
+	# Compartments speciefic to Wambaugh et al
+	Adeep,		# Amount in deep compartment
+	Afil,		# Amount in filrate compartment
+	Agut,		# Amount in gut
+	
+	Agut_i,		# Amount in infant gut
+	
+	A_milk,		# Amount transfered through milk
+	
+};
+
+#------------------------------------------------------------------------------
+# OUTPUT VARIABLES for the model (which can be obtained at any point in time
+# as analytic functions of state variables, inputs, and parameters).
+
+Outputs = { C_m,        # Concentration of substance in the mother (mass/L).
+		    C_i,        # Concentration of substance in the fetus/infant (mass/L).
+
+			#C_m_kg,        # Concentration of substance in the mother (mass/kg).
+		    #C_i_kg,        # Concentration of substance in the fetus/infant (mass/kg).
+		    
+			M_mf,       # Mass of the mother + fetus(es) (kg).
+			M_i,        # Mass of the infant (kg).
+			D_m,        # Rate of dose administration to mother (mg/kg/d).
+			D_m_iv,     # Rate of IV dose administration to mother (mg/kg/d).
+			D_i,        # Rate of dose administration to infant (mg/kg/d).
+			D_i_iv,     # Rate of IV dose administration to infant (mg/kg/d).
+			R_milk,     # Rate of breast milk ingestion by each infant (kg/d).
+			r_m_mf,     # Ratio of concentrations in mother and mother + fetus(es).
+			A_bal,      # Mass balance amount (mg). (Should be zero at all times.)
+		   
+		   Cdeep,      # Concentration in maternal deep compartment
+		   Cfil,  	   # Concentration in maternal filtrate compartment
+		   
+		   k_i,			# Elimination rate from infant
+		   
+
+		};
+
+# End of OUTPUT VARIABLES.
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# INPUT VARIABLES for the model (which are independent of other variables, and
+# which may vary in time).
+Inputs = {
+    M_mf_in,    # Mass of the mother + fetus(es) (kg).
+    M_i_in,     # Mass of the infant (kg).
+    R_milk_in,  # Rate of breast milk ingestion by each infant (kg/d).
+    r_m_mf_in,  # Ratio of concentrations in mother and mother + fetus(es).
+};
+
+# End of INPUT VARIABLES.
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# PARAMETERS for the model (which are independent of time).
+
+# Experimental parameters.
+# Default parameters: Rat, Female, PFOS
+Qcc = 297.36; # L/day/kg^0.74
+ka = 111.6; # 1/day
+Vcc = 0.535; # L/kg
+k12 = 0.2976; # 1/day
+Tmc = 46416; #mol/L/day/kg
+KT = 9.49; # umol/L
+free = 0.00807;
+Qfilc = 0.0666; # Unitless
+Vfilc = 0.0185; # L/kg 0.01/0.025 = 0.4
+Rv2v1 = 0.957; # Ratio v2/v1
+
+Vcc_i = 0.535;
+
+
+# Parameters for developmental model
+n_i = 10; # Number of infants
+r_f_m = 1; # Ratio of concentrations in fetus(es) and mother.
+P_milk = 1; # PFAS milk partitioning P_milk = A_milk/A_mother
+half_life = 30.; # Half-life in infants (days)
+F_abs = 1; 		# Wambuagh et al. assumes everything is absorbed with oral dose
+
+food_dose = 0;      # A boolean flag. Dose is delivered in food if nonzero.
+
+# Define transformed parameters from init
+k;
+
+
+# End of PARAMETERS.
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# MODEL INITIALIZATION section.
+Initialize {
+	k = log(2) / half_life;
+}
+
+
+# End of MODEL INITIALIZATION.
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# DYNAMICS section.
+Dynamics {
+	# Output variables describing input (forcing) functions.
+    M_mf = M_mf_in;
+    M_i = M_i_in;
+    R_milk = R_milk_in;
+    r_m_mf = r_m_mf_in;
+	k_i = k;
+	
+	
+	# Changing physiological parameters
+	Vc = Vcc*M_mf;
+	Vt = Vc*Rv2v1;
+	Tm = Tmc*M_mf;
+	Qfil = Qfilc*Qcc*pow(M_mf, 0.74); # While the manuscript states Qfilc*Qcc*M_mf^0.75, the original code used 0.74 for some reason. So I kept exponent from original code.
+	Vfil = Vfilc*M_mf;
+	Qd = Vc*k12;
+	
+	# Infant volumes
+	Vc_i = Vcc_i*M_i;
+	
+
+	# Convert to volume basis
+	C_m = A_mf * (M_i > 0 ? 1.0 : r_m_mf) / Vc;
+	C_i = (M_i > 0 ? A_i/Vc_i : r_f_m * C_m);
+	C_i = (t < 0 ? 0 : C_i); # ... zero before conception.
+	
+	Cdeep = Adeep/Vt;
+	Cfil = Afil/Vfil;
+	
+	
+	# Administered doses (mg/kg/d). Convert in-food doses (mg/kg) to effective
+    # administered doses if necessary. The conversion formula is based on
+    # Equation 6-1 of U.S. EPA (1988).
+	# ***Food equations are coded based on Kapraun model, but were NOT used for OW PFOS/PFOA work***
+    D_m = (food_dose ? 0.065 * pow(M_mf, 0.7919) / M_mf : 1.0) * d_m;
+    D_i = (food_dose ? 0.065 * pow(M_i, 0.7919)
+        / (M_i > 0 ? M_i : 1.0e-8) : 1.0) * d_i;
+	
+	
+	D_m_iv = d_m_iv;
+	D_i_iv = d_i_iv;
+	
+	# Mass balance (should be zero at all times).
+    #A_bal = T_in - A_mf - Adeep - Afil - Agut - n_i * A_i - T_out;
+	A_bal = T_in - A_mf - Adeep - Afil - Agut - n_i * (A_i + Agut_i) - T_out;
+	
+	# ----- Time rates of change of state variables (ODEs) -----
+	
+	# Milk transfer
+	#dt(A_milk) = R_milk * P_milk * C_m_kg;
+	dt(A_milk) = R_milk * P_milk * C_m;
+	
+	# Adult
+	dt(A_mf) = D_m_iv * M_mf + (ka*Agut-Qd*free*C_m-Qfil*C_m*free+Tm*Cfil/(KT+Cfil)+Qd*Cdeep) - n_i * dt(A_milk);
+	dt(Adeep) = (Qd*free*C_m-Qd*Cdeep);
+	dt(Afil) = (Qfil*C_m*free-Tm*Cfil/(KT+Cfil)-Qfil*Cfil);
+	dt(Agut) = F_abs * D_m * M_mf - ka*Agut;
+
+	# Infant
+	dt(Agut_i) = F_abs * D_i * M_i + dt(A_milk) - ka*Agut_i;
+	dt(A_i) = D_i_iv * M_i + ka*Agut_i - k * A_i;
+	
+	
+	# Rate of change of area under concentration curve (mg/kg) for ...
+    dt(AUC_m) = C_m;    # ... mother.
+    dt(AUC_i) = C_i;    # ... fetus/infant.
+	
+	# Rate of change of rate of dose administration (mg/kg/d^2) to...
+    dt(d_m) = 0.0;      # ... mother.
+	dt(d_m_iv) = 0.0;   # ... mother IV.
+    dt(d_i) = 0.0;      # ... infant.
+	dt(d_i_iv) = 0.0;	# ... infant IV
+	
+	
+	# Note that rates of dose administration are set and modified externally
+    # (i.e., as "initial conditions" or "events").
+
+    # Rate of change of total cumulative input to system (mg/d).
+    dt(T_in) = D_m_iv * M_mf + F_abs * D_m * M_mf + n_i * F_abs * D_i * M_i + n_i * D_i_iv * M_i;
+
+    # Rate of change of total cumulative output/clearance from system (mg/d).
+	dt(T_out) = Qfil*Cfil + n_i*k * A_i;
+	
+}
+# End of DYNAMICS.
+#------------------------------------------------------------------------------
+
+
+End.

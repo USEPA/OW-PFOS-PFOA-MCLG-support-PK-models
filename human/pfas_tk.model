@@ -1,0 +1,223 @@
+#------------------------------------------------------------------------------
+# pfas_tk.model
+#
+# A one-compartment toxicokinetic (TK) model for the amounts and concentrations
+# of a substance in non-pregnat individuauls, including a mother before
+# pregnancy, in the mother and her fetus(es) during pregnancy, and in the
+# mother and her infant(s) after pregnancy. The focus is on compounds that
+# bioaccumulate over a long time relative to an experimental bioassay, hence
+# for which accumulation should be tracked. The model allows for: dosing
+# directly to mother and infant(s) via dose administration parameters; 
+# distribution characterized by a volume of distribution (Vd, volume/BW),  
+# elimination from the mother or infant(s) based on the clearance (CL,
+# volume/BW/time); and transfer from mother to infant(s) via breast milk based
+# on a collection of parameters describing ingestion rates and concentration in
+# breast milk. (The model can also be used to describe dosimetry in an adult
+# organism that is not pregnant or lactating.)
+#
+# Author: Michael Dzierlenga, Paul Schlosser, U.S. EPA
+#    Model code adapted from a lipophilic PK model by Dustin Kapraun, U.S. EPA
+#    Model based on a PFAS PK model by Marc-Andre Verner et al.
+# References:
+# -- U.S. EPA (1988). Recommendations for and documentation of biological
+#    values for use in risk assessment. U.S. Environmental Protection Agency,
+#    Office of Research and Development, Office of Health and Environmental
+#    Assessment.
+# -- Kapraun, D.F. et al. (2022). A Generic Pharmacokinetic Model for
+#    Quantifying Mother-to-Offspring Transfer of Lipophilic Persistent
+#    Environmental Chemicals.
+# -- Verner, M.-A. et al. (2015). A Simple Pharmacokinetic Model of Prenatal
+#    and Postnatal Exposure to Perfluoroalkyl Substances (PFASs).
+#------------------------------------------------------------------------------
+
+ 
+#------------------------------------------------------------------------------
+# STATE VARIABLES for the model (for which ODEs are provided).
+
+States = {
+    A_mf,   # Amount of substance in the mother + fetus(es) (mg).
+    A_i,    # Amount of substance in one infant (mg).
+    AUC_m,  # Area under the concentration curve for the mother (mg/kg*d).
+    AUC_i,  # Area under the concentration curve for the fetus/infant (mg/kg*d).
+    d_m,    # Rate of dose administration to mother (mg/kg/d or mg/ml in water).
+    d_i,    # Not used. Infant dose is the d_i_in input (mg/kg/d or mg/ml in water).
+    T_in,   # Total cumulative input to system (mg).
+    T_out,  # Total cumulative output/clearance from system (mg).
+    CLr,    # Clearance rate for menstruating women (L/kg/d).
+};
+
+# End of STATE VARIABLES.
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+# OUTPUT VARIABLES for the model (which can be obtained at any point in time
+# as analytic functions of state variables, inputs, and parameters).
+
+Outputs = {
+    C_m,        # Concentration of substance in mother's blood (mg/L).
+    C_i,        # Concentration of substance in the fetus/infant blood (mg/L).
+    M_mf,       # Mass of the mother + fetus(es) (kg).
+    M_i,        # Mass of the infant (kg).
+    D_m,        # Rate of dose administration to mother (mg/d).
+    D_i,        # Rate of dose administration to infant (mg/d).
+    R_milk,     # Rate of breast milk ingestion by each infant (kg/d).
+    r_milk_i,   # Rate of PFAS transfer in breast milk (mg/d).
+    r_m_mf,     # Ratio of concentrations in mother and mother + fetus(es).
+    A_bal,      # Mass balance amount (mg). (Should be zero at all times.)
+    Vdmod_m,    # Modified Maternal Vd (L/kg)
+    Vdmod_i,    # Modified Filial Vd (L/kg)
+};
+
+
+# End of OUTPUT VARIABLES.
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+# INPUT VARIABLES for the model (which are independent of other variables, and
+# which may vary in time).
+Inputs = {
+    M_mf_in,    # Mass of the mother + fetus(es) (kg).
+    M_i_in,     # Mass of the infant (kg).
+    R_milk_in,  # Rate of breast milk ingestion by each infant (L/d) or (L/kg/d).
+    r_m_mf_in,  # Ratio of concentrations in mother and mother + fetus(es).
+    d_i_in,     # Dose (mg/kg/d or mg/d) to infant.
+    Vdaf_m_in,  # Ratio of Vd to adult value (adjustment factor)
+    Vdaf_i_in,  # Ratio of Vd to adult value (adjustment factor)    
+    DW_m_in,    # Drinking water consumption (ml/kg/d)
+    DW_i_in,    # Drinking water consumption (ml/kg/d)        
+};
+
+# Note that mass of the infant should be zero for all simulation times
+# corresponding to pregnancy and the period before conception and nonzero for
+# all simulation times corresponding to the postnatal period. 
+
+# End of INPUT VARIABLES.
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+# PARAMETERS for the model (which are independent of time).
+# Default values are for Aroclor 1254 in rat.
+
+# Substance- and species-specific parameters.
+P_milk = 1.0;   # Milk/maternal blood concentration partition coefficient.
+r_f_m = 1.0;    # Ratio of concentrations in fetus(es) and mother.
+t_con= 8851.25; # Age (d) of conception; default = 24.25 y * 365.
+CL = 0.0;       # Clearance rate of substance in this species (L/kg/d).
+Vd = 1.0;       # Volume of distribution (L/kg)
+
+## Vdaf_m_in = 1.0;# Ratio of Vd to adult value (adjustment factor)
+## Vdaf_i_in = 1.0;# Ratio of Vd to adult value (adjustment factor)    
+## DW_m_in = 0.0;  # Drinking water consumption (ml/kg/d)
+## DW_i_in = 0.0;  # Drinking water consumption (ml/kg/d)        
+
+# Experimental parameters.
+F_abs = 0.9;    # Fraction of administered dose that is absorbed.
+n_i = 10;       # Number of infants.
+water_dose = 0;  # A boolean flag. Dose is delivered in food if nonzero.
+pow_dose = 1.0; # sets dependence of dose on BW (M_mf and M_i).
+    # Dose is multiplied by BW^pow_dose (e.g., pow(M_mf,powdose))
+    # For cases when we don't want dose to increase with BW inside the model.
+    # d_m and d_i are interpreted as mg/d if pow_dose = 0.0.
+pow_milk = 0.0; # D of milk ingestion rate on infant BW (M_i), like pow_dose.
+
+# End of PARAMETERS.
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+# MODEL INITIALIZATION section.
+Initialize {
+    # ----- Calculated Parameters -----
+    # Here one can compute values of parameters that depend on constant
+    # parameters that have already been defined.
+    
+    # Currently no computed parameters.
+
+    # ----- State Variables -----
+
+    # Assign an initial value for each state.
+    A_mf = 0.0;     # Amount of substance in the mother + fetus(es) (mg).
+    A_i = 0.0;      # Amount of substance in the infant (mg).
+    AUC_m = 0.0;    # Area under concentration curve for mother (mg/kg*d).
+    AUC_i = 0.0;    # Area under concentration curve for fetus/infant (mg/kg*d).
+    d_m = 0.0;      # Rate of dose administration to mother (mg/kg/d or mg/kg).
+    CLr = 0.0;      # Clearance for women of reproductive age (L/kg/d)
+    T_in = 0.0;     # Total cumulative input to system (mg).
+    T_out = 0.0;    # Total cumulative output/clearance from system (mg).
+}
+# End of MODEL INITIALIZATION.
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+# DYNAMICS section.
+Dynamics {
+    # Output variables describing input (forcing) functions.
+    M_mf = M_mf_in;
+    M_i = M_i_in;
+    #d_i = d_i_in;
+    R_milk = R_milk_in;
+    R_milk = R_milk * pow(M_i, pow_milk);
+    r_m_mf = r_m_mf_in;
+
+    Vdmod_m = Vd*Vdaf_m_in; # Modified Vd
+    Vdmod_i = Vd*Vdaf_i_in; # Modified Vd    
+    DW_m    = DW_m_in;
+    DW_i    = DW_i_in;    
+
+    # Concentration of substance (mg/L) in ...
+    C_m = A_mf * (M_i > 0 ? 1.0 : r_m_mf) / (Vdmod_m * M_mf);   # ... mother.
+    C_i = (M_i > 0 ? A_i / (Vdmod_i * M_i) : r_f_m * C_m);      # ... fetus/infant.
+    C_i = (t < t_con ? 0 : C_i);    # ... zero before conception.
+
+    # Administered doses (mg/d). 
+    D_m = F_abs*(water_dose ? d_m * DW_m * M_mf : d_m*pow(M_mf,pow_dose));
+    D_i = F_abs*(water_dose ? d_i_in * DW_i * M_i : d_i_in*pow(M_i,pow_dose));    
+
+    # Mass balance (should be zero at all times).
+    A_bal = T_in - A_mf - n_i * A_i - T_out;
+    
+    r_milk_i = R_milk * P_milk * C_m ; 
+        # rate of transfer in milk per infant
+        
+    k_mf = (CLr > 0 ? CLr : CL)/Vd;   # Elimination constant for mother (/d)    
+    
+    k_i = CL/Vd;    # Elimination constant for infant (/d)    
+
+    # ----- Time rates of change of state variables (ODEs) -----
+    
+
+    # Rate of change of amount in mother + fetus(es) (mg/d).
+    dt(A_mf) = D_m - n_i*r_milk_i - k_mf*A_mf;
+
+    # Rate of change of amount in infant (mg/d).
+    dt(A_i) = D_i + r_milk_i - k_i*A_i;
+
+    # Rate of change of area under concentration curve (mg/kg) for ...
+    dt(AUC_m) = C_m;    # ... mother.
+    dt(AUC_i) = C_i;    # ... fetus/infant.
+
+    # Rate of change of rate of dose administration (mg/kg/d^2) to...
+    dt(d_m) = 0.0;      # ... mother.
+    dt(d_i) = 0.0;      # ... infant.
+    
+    # Rate of change of clearance for women of reproductive age (mg/kg/d^2)
+    dt(CLr) = 0.0;
+    
+    # Note that rates of dose administration are set and modified externally
+    # (i.e., as "initial conditions" or "events").
+
+    # Rate of change of total cumulative input to system (mg/d).
+    dt(T_in) = D_m + n_i*D_i;
+
+    # Rate of change of total cumulative output/clearance from system (mg/d).
+    dt(T_out) = k_mf*A_mf + n_i*k_i*A_i;
+}
+# End of DYNAMICS.
+#------------------------------------------------------------------------------
+
+
+End
