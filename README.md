@@ -1,7 +1,7 @@
 # Repository for PFOS/PFOA MCLG support PK modeling work
 This repository contains the pharmacokinetic modeling code for calculating human equivalent doses from the Proposed Maximum Contaminant Level Goal for Perfluorooctanoic Acid (PFOA) in Drinking Water and the Proposed Maximum Contaminant Level Goal for Perfluorooctane Sulfonic Acid (PFOS) in Drinking Water (Proposed MCLGs for PFOA and PFOS in Drinking Water).
 
-Because this analysis directly generates the numbers used in [Proposed MCLGs for PFOA and PFOS in Drinking Water](https://www.regulations.gov/docket/EPA-HQ-OW-2022-0114), we ask that you visit [CONTRIBUTING](https://github.com/USEPA/OW-PFOS-PFOA-MCLG-support-PK-models/blob/master/license.md) for instructions on how to contact EPA about code requests.
+Because this analysis directly generates the numbers used in [Proposed MCLGs for PFOA and PFOS in Drinking Water](https://www.regulations.gov/docket/EPA-HQ-OW-2022-0114), we ask that you visit [CONTRIBUTING](https://github.com/USEPA/OW-PFOS-PFOA-MCLG-support-PK-models/blob/master/contributing.md) for instructions on how to contact EPA about code requests.
 
 ## Dependencies
 In order to run this code, the following dependencies are needed.
