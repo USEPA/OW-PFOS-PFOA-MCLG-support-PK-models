@@ -175,11 +175,11 @@ human_adult <- function(age=30,sex=NULL,chem=NULL,dose=0.001,dose_change=NULL,DW
 
     if(is.null(dose_change)){
         ## Run model simulation
-        out = run_model("pfas_tk", times, Y0, parms, rtol=1e-6, atol=1e-6,
-                        list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
+        out = run_model("pfas_tk", times, Y0=Y0, parms=parms, rtol=1e-6, atol=1e-6,
+                        forcing=list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
                              Vdaf_m_in, Vdaf_i_in, DW_m_in, DW_i_in),
-                        list(method="linear", rule=2, ties="ordered"),
-                        list(data=df_events))
+                        fcontrol=list(method="linear", rule=2, ties="ordered"),
+                        event_list=list(data=df_events))
     } else {
         dose_events <- data.frame(var=rep("d_m",nrow(dose_change)),time=dose_change$time*365,value=dose_change$d_m,method=rep("replace",nrow(dose_change)))
         event_list <- rbind(df_events,dose_events)
@@ -187,11 +187,11 @@ human_adult <- function(age=30,sex=NULL,chem=NULL,dose=0.001,dose_change=NULL,DW
         event_list_sorted <- event_list_sorted[event_list_sorted$time<=t_end,]
         times <- cleanEventTimes(times,event_list_sorted$time)
         times <- sort(c(times,event_list_sorted$time))
-        out = run_model("pfas_tk", times, Y0, parms,rtol=1e-6, atol=1e-6,
-                        list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
+        out = run_model("pfas_tk", times, Y0=Y0, parms=parms,rtol=1e-6, atol=1e-6,
+                        forcing=list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
                              Vdaf_m_in, Vdaf_i_in, DW_m_in, DW_i_in),
-                        list(method="linear", rule=2, ties="ordered"),
-                        list(data=event_list_sorted))
+                        fcontrol=list(method="linear", rule=2, ties="ordered"),
+                        event_list=list(data=event_list_sorted))
     }
 
     out <- cbind(out,(out[,"time"]/365))

@@ -29,7 +29,14 @@ rpy2: `pip install rpy2==3.4.4`
 
 Note: Must use `pip` and **not** conda distribution. Also, must use rpy2 v.3.4.4
 
-autoreload: `pip install autoreload`
+Note: If import of rpy2 through `from rpy2.robjects import r` fails during import of `PFAS_DR.py`, add the following lines to `PFAS_DR.py` before `import rpy2`:
+
+```
+import os
+os.environ['R_HOME'] = 'path/to/R/install'
+```
+
+Generally, the path to the R install is something like `C:\Program Files\R\R-<version-number>`
 
 watermark: `pip install watermark`
 
@@ -41,6 +48,7 @@ To aid in reproducibility, pertinent code from MCSim has been compiled to an exe
 ## Compiling a model
 Before running code, the .model files must be compiled. This is best done in RStudio once all the R dependencies are satisfied.
 
+### Compile model in R
 Open RStudio and run the following lines
 
 ```
@@ -48,6 +56,16 @@ library(RMCSim)
 Sys.setenv(PATH = paste("C:/Rtools40/usr/bin", Sys.getenv("PATH"), sep=";")) # Check RTools path. usr/bin of RTools must be added here
 setwd('/path/to/model')
 compile_model('model_name')
+```
+
+### Compile model in Python
+Ensure the working directory is `OW-PFOS-PFOA-MCLG-support-PK-models\animal` and then run
+
+```
+from PFAS_DR import PFAS_DR
+model_path = 'path/to/model_file.model'
+model_compile = PFAS_DR()
+model_compile.pk_run.compile_pfas_model(model_path)
 ```
 
 ## Pharmacokinetic Analysis

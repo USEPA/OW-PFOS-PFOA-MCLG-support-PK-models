@@ -282,11 +282,11 @@ human_mother_child <- function(age_start=0, a_start=0, age_end=30, p=NULL, sex="
   df_events = rbind(df_CLr)
 
   # Run model simulation to birth
-  out1 = run_model(mName, times, Y0, parms, rtol=1e-6, atol=1e-6,
-                   list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
+  out1 = run_model(mName, times, Y0=Y0, parms=parms, rtol=1e-6, atol=1e-6,
+                   forcing = list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
                         Vdaf_m_in, Vdaf_i_in, DW_m_in, DW_i_in),
-                   list(method="linear", rule=2, ties="ordered"),
-                   list(data=df_events))
+                   fcontrol=list(method="linear", rule=2, ties="ordered"),
+                   event_list=list(data=df_events))
 
   # Now run post-pregnancy simulations, need to set up initial conditions and
   # time-dependent parameters first.
@@ -347,11 +347,11 @@ human_mother_child <- function(age_start=0, a_start=0, age_end=30, p=NULL, sex="
       # and fetus just before birth minus amount in each just after birth.
 
   # Run simulation for times after birth.
-  out2 = run_model(mName, times2, Y0, parms, rtol=1e-6, atol=1e-6,
-                   list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
+  out2 = run_model(mName, times2, Y0=Y0, parms=parms, rtol=1e-6, atol=1e-6,
+                   forcing=list(M_mf_in, M_i_in, R_milk_in, r_m_mf_in, d_i_in,
                         Vdaf_m_in, Vdaf_i_in, DW_m_in, DW_i_in),
-                   list(method="linear", rule=2, ties="ordered"),
-                   list(data=df_events))
+                   fcontrol=list(method="linear", rule=2, ties="ordered"),
+                   event_list=list(data=df_events))
   out = rbind(out1[1:nrow(out1)-1, ], out2)
 
   return(out)   # Return output data frame.
